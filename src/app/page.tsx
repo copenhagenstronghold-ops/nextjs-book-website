@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import React, { useState } from 'react';
 import { Leaf, Award, UtensilsCrossed, Zap, Droplet, Layers } from 'lucide-react';
@@ -125,7 +125,7 @@ export default function App() {
           ];
       } else if (lowercasedProfile.includes('umami')) {
           newMix = [
-              { name: 'Acai', emoji: '🍇', description: 'Forms an umami-rich base with earthy, chocolatey notes.' },
+              { name: 'Acai', emoji: '�', description: 'Forms an umami-rich base with earthy, chocolatey notes.' },
               { name: 'Black Currant', emoji: '🍇', description: 'Adds a savory depth and aromatic finish.' },
               { name: 'Goji Berry', emoji: '🍒', description: 'Provides a slightly sweet, savory complexity.' }
           ];
@@ -197,7 +197,7 @@ export default function App() {
         <section className="bg-white p-6 rounded-2xl shadow-lg">
           <h2 className="text-2xl font-bold mb-4 flex items-center gap-2"><UtensilsCrossed className="text-rose-500" /> AI Chef: Complex Recipe Recommender</h2>
           <p className="text-gray-600 mb-4">
-            Enter a desired flavor profile (e.g., "bitter and sour" or "umami-rich") and let the AI suggest
+            Enter a desired flavor profile (e.g., &quot;bitter and sour&quot; or &quot;umami-rich&quot;) and let the AI suggest
             the perfect berry mix for a sophisticated culinary creation.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 mb-6">
@@ -257,3 +257,4 @@ export default function App() {
     </div>
   );
 }
+�
