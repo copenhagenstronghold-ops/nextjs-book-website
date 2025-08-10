@@ -8,7 +8,26 @@ import { Leaf, Award, UtensilsCrossed, Zap, Droplet, Layers } from 'lucide-react
 // just sweet and salty, focusing on sour, bitter, and umami.
 
 // Define the shape of our berry data with new properties for advanced flavor analysis.
-const BERRIES = [
+type Berry = {
+  name: string;
+  sweetness: number;
+  sourness: number;
+  bitterness: number;
+  umami: number;
+  emoji: string;
+};
+
+// Define the shape of a recommended berry mix object.
+type RecommendedBerry = {
+  name: string;
+  emoji: string;
+  description: string;
+};
+
+// Define a union type for our sorting criteria to ensure type-safety.
+type SortCriteria = 'sourest' | 'bitter' | 'umami' | 'complex';
+
+const BERRIES: Berry[] = [
   { name: 'Strawberry', sweetness: 8.5, sourness: 3.0, bitterness: 1.0, umami: 0.5, emoji: '🍓' },
   { name: 'Raspberry', sweetness: 7.0, sourness: 5.5, bitterness: 2.0, umami: 1.5, emoji: ' малины' },
   { name: 'Blueberry', sweetness: 8.0, sourness: 2.5, bitterness: 2.0, umami: 0.5, emoji: '🫐' },
@@ -61,19 +80,19 @@ const BERRIES = [
   { name: 'Snowberry', sweetness: 1.0, sourness: 1.0, bitterness: 0.5, umami: 0.5, emoji: '⚪' }
 ];
 
-const createBerryKey = (berry) => `${berry.name}-${berry.sweetness}-${berry.sourness}`;
+const createBerryKey = (berry: Berry) => `${berry.name}-${berry.sweetness}-${berry.sourness}`;
 
 export default function App() {
   const [berries, setBerries] = useState(BERRIES);
-  const [sortOrder, setSortOrder] = useState('sourest');
-  const [recommendedMix, setRecommendedMix] = useState(null);
+  const [sortOrder, setSortOrder] = useState<SortCriteria>('sourest');
+  const [recommendedMix, setRecommendedMix] = useState<RecommendedBerry[] | null>(null);
   const [flavorProfile, setFlavorProfile] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
   // Function to handle the sorting logic
-  const handleSort = (criteria) => {
+  const handleSort = (criteria: SortCriteria) => {
     setSortOrder(criteria);
-    let sortedBerries = [...berries];
+    const sortedBerries = [...berries];
     if (criteria === 'sourest') {
       sortedBerries.sort((a, b) => b.sourness - a.sourness);
     } else if (criteria === 'bitter') {
@@ -94,7 +113,7 @@ export default function App() {
   const generateRecipe = () => {
     setIsLoading(true);
     setTimeout(() => {
-      let newMix = [];
+      let newMix: RecommendedBerry[] = [];
       const lowercasedProfile = flavorProfile.toLowerCase();
 
       // The AI logic (simulated)
@@ -220,7 +239,7 @@ export default function App() {
         <section className="bg-white p-6 rounded-2xl shadow-lg">
           <h2 className="text-2xl font-bold mb-4 text-emerald-500">Berry Database</h2>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-            {berries.map((berry, index) => (
+            {berries.map((berry) => (
               <div key={createBerryKey(berry)} className="flex flex-col items-center p-4 bg-gray-50 rounded-lg border border-gray-200 hover:scale-105 transition-transform duration-200">
                 <span className="text-4xl">{berry.emoji}</span>
                 <span className="mt-2 text-sm font-semibold text-gray-900">{berry.name}</span>
@@ -238,4 +257,3 @@ export default function App() {
     </div>
   );
 }
-
