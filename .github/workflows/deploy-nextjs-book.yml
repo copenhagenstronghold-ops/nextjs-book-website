@@ -8,7 +8,7 @@ on:
  push:
    branches:
      - main # This workflow runs when you push changes to the 'main' branch
-
+     - 'feat/**' # This line adds a wildcard to include all feature branches
 
 env:
  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }} # Your Google Cloud Project ID
