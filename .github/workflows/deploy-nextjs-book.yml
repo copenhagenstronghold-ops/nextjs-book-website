@@ -1,60 +1,91 @@
+# .github/workflows/deploy-nextjs-book.yml
+
+
 name: Deploy Next.js Book to Cloud Run
 
+
 on:
-  push:
-    branches:
-      - main
+ push:
+   branches:
+     - main # This workflow runs when you push changes to the 'main' branch
+
 
 env:
-  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
-  SERVICE_NAME: nextjs-book-app
-  REGION: europe-west1
-  ARTIFACT_REGISTRY_REPO: nextjs-book-images
+ PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }} # Your Google Cloud Project ID
+ SERVICE_NAME: nextjs-book-app # The name of your Cloud Run service
+ REGION: europe-west1 # The Google Cloud region for your Cloud Run service (e.g., us-central1, europe-west1)
+ ARTIFACT_REGISTRY_REPO: nextjs-book-images # Name for your Artifact Registry repository
+
 
 jobs:
-  build-and-deploy:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+ build-and-deploy:
+   runs-on: ubuntu-latest # Uses the latest Ubuntu runner provided by GitHub Actions
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
 
-      - name: Install dependencies
-        run: npm ci
+   steps:
+     - name: Checkout repository
+       uses: actions/checkout@v4 # Checks out your repository code
 
-      - name: Build Next.js application
-        run: npm run build
-        env:
-          NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
 
-      - name: Authenticate to Google Cloud
-        id: auth
-        uses: google-github-actions/auth@v2
-        with:
-          credentials_json: ${{ secrets.GCP_SA_KEY }}
+     - name: Set up Node.js
+       uses: actions/setup-node@v4
+       with:
+         node-version: '20' # Specify the Node.js version your Next.js app uses
 
-      - name: Set up Google Cloud SDK
-        uses: google-github-actions/setup-gcloud@v2
 
-      - name: Configure Docker to use Artifact Registry
-        run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev
+     - name: Install dependencies
+       run: npm ci # 'npm ci' is preferred over 'npm install' in CI environments for consistency
 
-      - name: Build and push Docker image to Artifact Registry
-        run: |
-          docker build -t ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.SERVICE_NAME }}:${{ github.sha }} .
-          docker push ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.SERVICE_NAME }}:${{ github.sha }}
 
-      - name: Deploy to Cloud Run
-        id: deploy
-        uses: google-github-actions/deploy-cloudrun@v2
-        with:
-          service: ${{ env.SERVICE_NAME }}
-          region: ${{ env.REGION }}
-          image: ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.SERVICE_NAME }}:${{ github.sha }}
+     - name: Run tests
+       run: npm test # Runs your Next.js application's tests (e.g., Jest, React Testing Library)
+       # If you don't have tests yet, you can comment this out or add a placeholder script
+       # For example, in package.json: "test": "echo \"No tests specified\" && exit 0"
 
-      - name: Show deployed service URL
-        run: echo "Service URL: ${{ steps.deploy.outputs.url }}"
+
+     - name: Build Next.js application
+       run: npm run build # Builds your Next.js app for production
+       env:
+         NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }} # Example: If your Next.js app needs public env vars at build time
+
+
+     - name: Authenticate to Google Cloud
+       id: auth
+       uses: google-github-actions/auth@v2
+       with:
+         # Your Google Cloud service account key, stored as a GitHub Secret
+         # This secret should be named GCP_SA_KEY in your GitHub repository settings
+         credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+
+     - name: Set up Google Cloud SDK
+       uses: google-github-actions/setup-gcloud@v2
+
+
+     - name: Configure Docker to use Artifact Registry
+       run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev
+
+
+     - name: Build and push Docker image to Artifact Registry
+       run: |
+         docker build -t ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.SERVICE_NAME }}:${{ github.sha }} .
+         docker push ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.SERVICE_NAME }}:${{ github.sha }}
+
+
+     - name: Deploy to Cloud Run
+       id: deploy
+       uses: google-github-actions/deploy-cloudrun@v2
+       with:
+         service: ${{ env.SERVICE_NAME }}
+         region: ${{ env.REGION }}
+         image: ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.SERVICE_NAME }}:${{ github.sha }}
+  
+     - name: Show deployed service URL
+       run: |
+        echo "The deployment is complete."
+        echo "Service URL: ${{ steps.deploy.outputs.url }}"
+
+
+
+
+       
