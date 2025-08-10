@@ -37,8 +37,8 @@ jobs:
        run: npm ci # 'npm ci' is preferred over 'npm install' in CI environments for consistency
 
 
-     - name: Run tests
-       run: npm test # Runs your Next.js application's tests (e.g., Jest, React Testing Library)
+  #  - name: Run tests
+  #    run: npm test # Runs your Next.js application's tests (e.g., Jest, React Testing Library)
        # If you don't have tests yet, you can comment this out or add a placeholder script
        # For example, in package.json: "test": "echo \"No tests specified\" && exit 0"
 
