@@ -53,7 +53,8 @@ jobs:
       # Run Unit Tests 
       - name: Run Unit Tests
         # Running tests from the current directory (repository root)
-        run: pytest 
+        #run: pytest
+        run: pip install pytest && pytest . 
 
       # --- Continuous Delivery (CD) Steps ---
       
