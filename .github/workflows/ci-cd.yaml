@@ -40,17 +40,20 @@ jobs:
         with:
           python-version: '3.11' 
 
-      # Install dependencies (assuming a requirements.txt file exists)
+      # Install dependencies (Path fixed to subdirectory)
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        # Assuming requirements.txt is now at llm-rag-service/requirements.txt
+        run: pip install -r llm-rag-service/requirements.txt
         
-      # Run Linting/Formatting checks (Example: using flake8)
+      # Run Linting/Formatting checks 
       - name: Run Linter
-        run: pip install flake8 && flake8 .
+        # Linting the subdirectory only
+        run: pip install flake8 && flake8 llm-rag-service
         
-      # Run Unit Tests (Assuming a standard test runner like pytest)
+      # Run Unit Tests 
       - name: Run Unit Tests
-        run: pytest # You will need to ensure you have a 'pytest' setup
+        # Running tests located in the subdirectory
+        run: pytest llm-rag-service 
 
       # --- Continuous Delivery (CD) Steps ---
       
@@ -66,11 +69,12 @@ jobs:
       - name: Configure Docker
         run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev
 
-      # 5. Build and Tag the Container Image
+      # 5. Build and Tag the Container Image (Context fixed to subdirectory)
       - name: Build and Tag Image
         run: |
           IMAGE_TAG="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
-          docker build -t $IMAGE_TAG .
+          # The Docker context is now the subdirectory
+          docker build -t $IMAGE_TAG llm-rag-service
           echo "IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_ENV
           
       # 6. Push the Container Image to Artifact Registry
@@ -85,4 +89,4 @@ jobs:
           region: ${{ env.REGION }}
           image: ${{ env.IMAGE_TAG }}
           allow_unauthenticated: true
-          # Note: We will add environment variables later, like the DB endpoint
+
