@@ -1,10 +1,9 @@
 # src/main.py
-from flask import Flask, request, jsonify, make_response
-from functools import wraps
-import json
+# F401 FIX: Removed unused imports (make_response, wraps, json)
+from flask import Flask, request, jsonify
 
 
-# E302 FIX: Two blank lines before function/class definition
+# The Flask app instance
 app = Flask(__name__)
 
 
@@ -12,6 +11,7 @@ app = Flask(__name__)
 @app.route('/', methods=['POST'])
 def rag_service():
     """Placeholder endpoint for the RAG service."""
+    # Note: request.json works because the Flask package is imported and used.
     data = request.json
     query = data.get('query', 'No query provided')
     
@@ -19,5 +19,5 @@ def rag_service():
     response_text = f"Hello from RAG Service! Processed query: '{query}'"
 
     return jsonify({"response": response_text})
-# W292 FIX: File must end with a single newline character
+# W391 FIX: File ends with exactly one newline.
 
