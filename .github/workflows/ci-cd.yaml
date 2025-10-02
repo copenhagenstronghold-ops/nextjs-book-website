@@ -1,0 +1,88 @@
+name: CI/CD Pipeline - Build & Deploy RAG Service
+
+# 1. Trigger the workflow on pushes to the main branch
+on:
+  push:
+    branches:
+      - main
+
+# Define environment variables used throughout the job
+env:
+  PROJECT_ID: podcarsten-32199
+  PROJECT_NUMBER: 573158456254
+  REGION: europe-west1
+  ARTIFACT_REGISTRY: rag-service-repo
+  SERVICE_NAME: rag-service
+  SA_EMAIL: github-actions-sa@podcarsten-32199.iam.gserviceaccount.com
+  WIF_POOL_ID: github-pool
+  WIF_PROVIDER_ID: github-provider
+  IMAGE_NAME: rag-service
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    
+    # 2. Configure Workload Identity Federation (WIF) for keyless authentication
+    permissions:
+      contents: 'read'
+      id-token: 'write'
+
+    steps:
+      # Checkout the code
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      # --- Continuous Integration (CI) Steps ---
+
+      # Set up Python environment
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11' 
+
+      # Install dependencies (assuming a requirements.txt file exists)
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+        
+      # Run Linting/Formatting checks (Example: using flake8)
+      - name: Run Linter
+        run: pip install flake8 && flake8 .
+        
+      # Run Unit Tests (Assuming a standard test runner like pytest)
+      - name: Run Unit Tests
+        run: pytest # You will need to ensure you have a 'pytest' setup
+
+      # --- Continuous Delivery (CD) Steps ---
+      
+      # 3. Authenticate with Google Cloud using the WIF Pool
+      - name: Authenticate to Google Cloud
+        id: 'auth'
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: projects/${{ env.PROJECT_NUMBER }}/locations/global/workloadIdentityPools/${{ env.WIF_POOL_ID }}/providers/${{ env.WIF_PROVIDER_ID }}
+          service_account: ${{ env.SA_EMAIL }}
+          
+      # 4. Configure Docker to authenticate with Artifact Registry
+      - name: Configure Docker
+        run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev
+
+      # 5. Build and Tag the Container Image
+      - name: Build and Tag Image
+        run: |
+          IMAGE_TAG="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
+          docker build -t $IMAGE_TAG .
+          echo "IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_ENV
+          
+      # 6. Push the Container Image to Artifact Registry
+      - name: Push Image to Artifact Registry
+        run: docker push ${{ env.IMAGE_TAG }}
+        
+      # 7. Deploy the Container to Cloud Run
+      - name: Deploy to Cloud Run
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: ${{ env.SERVICE_NAME }}
+          region: ${{ env.REGION }}
+          image: ${{ env.IMAGE_TAG }}
+          allow_unauthenticated: true
+          # Note: We will add environment variables later, like the DB endpoint
