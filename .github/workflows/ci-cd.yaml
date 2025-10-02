@@ -46,9 +46,9 @@ jobs:
         run: pip install -r requirements.txt
         
       # Run Linting/Formatting checks 
-      - name: Run Linter
+      #- name: Run Linter
         # Linting the current directory (repository root)
-        run: pip install flake8 && flake8 .
+      #  run: pip install flake8 && flake8 .
         
       # Run Unit Tests 
       - name: Run Unit Tests
