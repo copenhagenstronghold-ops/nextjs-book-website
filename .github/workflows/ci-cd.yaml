@@ -85,3 +85,4 @@ jobs:
           region: ${{ env.REGION }}
           image: ${{ env.IMAGE_TAG }}
           allow_unauthenticated: true
+          
