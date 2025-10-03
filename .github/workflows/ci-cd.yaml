@@ -1,4 +1,3 @@
-
 name: Deploy LLM RAG Service to Cloud Run
 
 on:
@@ -29,9 +28,7 @@ steps:
     service_account: 'github-actions-sa@podcarsten-32199.iam.gserviceaccount.com'
 
 # --- Setup Google Cloud SDK ---
-# We remove the project_id parameter here to prevent the action from trying to 
-# run a gcloud command that refreshes credentials and triggers the token-creator error again.
-# The credentials from the 'auth' step are sufficient.
+# We rely on the 'auth' step for credentials and do not set project_id here to avoid the token refresh error.
 - name: 'Set up Cloud SDK'
   uses: 'google-github-actions/setup-gcloud@v2'
 
