@@ -1,88 +1,59 @@
-name: CI/CD Pipeline - Build & Deploy RAG Service
+
+name: Deploy LLM RAG Service to Cloud Run
 
 on:
-  push:
-    branches:
-      - main
-
-env:
-  PROJECT_ID: podcarsten-32199
-  PROJECT_NUMBER: 573158456254
-  REGION: europe-west1
-  ARTIFACT_REGISTRY: rag-service-repo
-  SERVICE_NAME: rag-service
-  SA_EMAIL: github-actions-sa@podcarsten-32199.iam.gserviceaccount.com
-  WIF_POOL_ID: github-pool
-  WIF_PROVIDER_ID: github-provider
-  IMAGE_NAME: rag-service
+push:
+branches:
+- main
+workflow_dispatch:
 
 jobs:
-  build-and-deploy:
-    runs-on: ubuntu-latest
-    
-    permissions:
-      contents: 'read'
-      id-token: 'write'
+build-and-deploy:
+runs-on: ubuntu-latest
 
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
+# IMPORTANT: Need write permission for id-token to use Workload Identity Federation
+permissions:
+  contents: 'read'
+  id-token: 'write'
 
-      # --- Continuous Integration (CI) Steps ---
+steps:
+- name: Checkout Repository
+  uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11' 
+# --- Authentication (Workload Identity Federation) ---
+- id: 'auth'
+  name: Authenticate to Google Cloud
+  uses: 'google-github-actions/auth@v2'
+  with:
+    workload_identity_provider: 'projects/573158456254/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
+    service_account: 'github-actions-sa@podcarsten-32199.iam.gserviceaccount.com'
 
-      - name: Install dependencies
-        run: pip install -r requirements.txt
-        
-      - name: Run Unit Tests 
-        run: pip install pytest && PYTHONPATH=. pytest .
+# --- Setup Google Cloud SDK ---
+# We remove the project_id parameter here to prevent the action from trying to 
+# run a gcloud command that refreshes credentials and triggers the token-creator error again.
+# The credentials from the 'auth' step are sufficient.
+- name: 'Set up Cloud SDK'
+  uses: 'google-github-actions/setup-gcloud@v2'
 
-      # --- Continuous Delivery (CD) Steps ---
-      
-      # 1. Authenticate with Google Cloud using the WIF Pool
-      - name: Authenticate to Google Cloud
-        id: 'auth'
-        uses: google-github-actions/auth@v2
-        with:
-          workload_identity_provider: projects/${{ env.PROJECT_NUMBER }}/locations/global/workloadIdentityPools/${{ env.WIF_POOL_ID }}/providers/${{ env.WIF_PROVIDER_ID }}
-          service_account: ${{ env.SA_EMAIL }}
-          
-      # 2. Setup gcloud CLI (Sets the Project ID for all subsequent gcloud commands, ensuring context for Docker helper)
-      - name: Set Gcloud Project Context
-        uses: google-github-actions/setup-gcloud@v2
-        with:
-          project_id: ${{ env.PROJECT_ID }}
-          
-      # 3. Configure Docker (Relies on steps 1 and 2 to provide the authentication context)
-      - name: Configure Docker for Artifact Registry
-        run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev
+# --- Configure Docker for Artifact Registry ---
+- name: 'Configure Docker'
+  run: |
+    gcloud auth configure-docker us-central1-docker.pkg.dev
 
-      # 4. Build and Tag the Container Image
-      - name: Build and Tag Image
-        run: |
-          # 1. Define the full tag string as a shell variable
-          TAG_NAME="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
-          
-          # 2. Use the shell variable in the docker build command directly
-          docker build -t "$TAG_NAME" .
-          
-          # 3. Export the final tag to the GitHub environment for the next steps
-          echo "IMAGE_TAG=$TAG_NAME" >> $GITHUB_ENV
-        
-      # 5. Push the Container Image to Artifact Registry
-      - name: Push Image to Artifact Registry
-        run: docker push ${{ env.IMAGE_TAG }}
-        
-      # 6. Deploy the Container to Cloud Run
-      - name: Deploy to Cloud Run
-        uses: google-github-actions/deploy-cloudrun@v2
-        with:
-          service: ${{ env.SERVICE_NAME }}
-          region: ${{ env.REGION }}
-          image: ${{ env.IMAGE_TAG }}
-          allow_unauthenticated: true
-          
+# --- Build and Push Docker Image ---
+- name: 'Build and Push Docker Image'
+  run: |
+    IMAGE_URI="us-central1-docker.pkg.dev/podcarsten-32199/rag-service-repo/rag-service:$GITHUB_SHA"
+    docker build -t $IMAGE_URI .
+    docker push $IMAGE_URI
+
+# --- Deploy to Cloud Run ---
+- name: 'Deploy to Cloud Run'
+  uses: 'google-github-actions/deploy-cloudrun@v2'
+  with:
+    service: 'rag-service'
+    region: 'us-central1'
+    image: 'us-central1-docker.pkg.dev/podcarsten-32199/rag-service-repo/rag-service:$GITHUB_SHA'
+    # The service account used here is the one authenticated in the 'auth' step
+    flags: '--platform managed --allow-unauthenticated'
+
