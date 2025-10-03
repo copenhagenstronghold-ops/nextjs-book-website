@@ -51,11 +51,17 @@ jobs:
           workload_identity_provider: projects/${{ env.PROJECT_NUMBER }}/locations/global/workloadIdentityPools/${{ env.WIF_POOL_ID }}/providers/${{ env.WIF_PROVIDER_ID }}
           service_account: ${{ env.SA_EMAIL }}
           
-      # 2. Configure Docker (Needs TokenCreator role, which we assigned)
+      # 2. Setup gcloud CLI (Sets the Project ID for all subsequent gcloud commands, ensuring context for Docker helper)
+      - name: Set Gcloud Project Context
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ env.PROJECT_ID }}
+          
+      # 3. Configure Docker (Relies on steps 1 and 2 to provide the authentication context)
       - name: Configure Docker for Artifact Registry
         run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev
 
-      # 3. Build and Tag the Container Image (Fixes variable usage)
+      # 4. Build and Tag the Container Image
       - name: Build and Tag Image
         run: |
           # 1. Define the full tag string as a shell variable
@@ -67,11 +73,11 @@ jobs:
           # 3. Export the final tag to the GitHub environment for the next steps
           echo "IMAGE_TAG=$TAG_NAME" >> $GITHUB_ENV
         
-      # 4. Push the Container Image to Artifact Registry
+      # 5. Push the Container Image to Artifact Registry
       - name: Push Image to Artifact Registry
         run: docker push ${{ env.IMAGE_TAG }}
         
-      # 5. Deploy the Container to Cloud Run
+      # 6. Deploy the Container to Cloud Run
       - name: Deploy to Cloud Run
         uses: google-github-actions/deploy-cloudrun@v2
         with:
