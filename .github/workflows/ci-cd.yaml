@@ -8,8 +8,7 @@ on:
 
 env:
   PROJECT_ID: podcarsten-32199
-  # CRITICAL FIX: Changed from us-central1 to a common European region.
-  # If your Artifact Registry is in a different region (like europe-west4, etc.), change this variable.
+  # The correct European region where your Artifact Registry is hosted (e.g., europe-west1)
   GAR_LOCATION: europe-west1
   SERVICE_NAME: rag-service
   REPOSITORY_NAME: rag-service-repo
@@ -29,14 +28,18 @@ jobs:
     - name: Authenticate Google Cloud with Workload Identity
       uses: 'google-github-actions/auth@v2'
       with:
-        # The service account associated with the Workload Identity Pool
+        # CRITICAL FIX: This input was missing and caused the error.
+        # This links the GitHub runner to your Workload Identity Pool setup.
+        # The project number (573158456254) is taken from the prior IAM binding output.
+        workload_identity_provider: projects/573158456254/locations/global/workloadIdentityPools/github-pool/providers/github-provider
+        # The service account to impersonate after successful WIF authentication
         service_account: github-actions-sa@podcarsten-32199.iam.gserviceaccount.com
         
     # --- Docker Build and Push Step ---
     - name: Build and Push Docker Image to Artifact Registry
       id: build-image
       run: |
-        # Configure Docker to use gcloud for credentials, using the corrected location
+        # Configure Docker to use gcloud for credentials, using the corrected European location
         gcloud auth configure-docker ${GAR_LOCATION}-docker.pkg.dev --quiet
 
         # Define the full IMAGE_URI using the corrected location
