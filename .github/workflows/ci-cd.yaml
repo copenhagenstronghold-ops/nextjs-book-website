@@ -1,4 +1,4 @@
-name: Deploy LLM RAG Service to Cloud Run
+name: Deploy RAG Service to Cloud Run
 
 on:
   push:
@@ -6,40 +6,64 @@ on:
       - main
   workflow_dispatch:
 
+env:
+  PROJECT_ID: podcarsten-32199
+  # CRITICAL FIX: Changed from us-central1 to a common European region.
+  # If your Artifact Registry is in a different region (like europe-west4, etc.), change this variable.
+  GAR_LOCATION: europe-west1
+  SERVICE_NAME: rag-service
+  REPOSITORY_NAME: rag-service-repo
+
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
     permissions:
       contents: 'read'
       id-token: 'write'
+
     steps:
     - name: Checkout Repository
       uses: actions/checkout@v4
 
-    - id: 'auth'
-      name: Authenticate to Google Cloud
+    # --- Authentication Step (Workload Identity) ---
+    - name: Authenticate Google Cloud with Workload Identity
       uses: 'google-github-actions/auth@v2'
       with:
-        workload_identity_provider: 'projects/573158456254/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
-        service_account: 'github-actions-sa@podcarsten-32199.iam.gserviceaccount.com'
-    
-    # We rely on the 'auth' step for credentials and do not set project_id here to avoid the token refresh error.
-    - name: 'Set up Cloud SDK'
-      uses: 'google-github-actions/setup-gcloud@v2'
-
-    - name: 'Configure Docker'
-      run: gcloud auth configure-docker us-central1-docker.pkg.dev
-
-    - name: 'Build and Push Docker Image'
+        # The service account associated with the Workload Identity Pool
+        service_account: github-actions-sa@podcarsten-32199.iam.gserviceaccount.com
+        
+    # --- Docker Build and Push Step ---
+    - name: Build and Push Docker Image to Artifact Registry
+      id: build-image
       run: |
-        IMAGE_URI="us-central1-docker.pkg.dev/podcarsten-32199/rag-service-repo/rag-service:$GITHUB_SHA"
+        # Configure Docker to use gcloud for credentials, using the corrected location
+        gcloud auth configure-docker ${GAR_LOCATION}-docker.pkg.dev --quiet
+
+        # Define the full IMAGE_URI using the corrected location
+        IMAGE_URI="${GAR_LOCATION}-docker.pkg.dev/${PROJECT_ID}/${REPOSITORY_NAME}/${SERVICE_NAME}:${GITHUB_SHA}"
+
+        # Build the Docker image
         docker build -t $IMAGE_URI .
+        
+        # Push the image to Artifact Registry
         docker push $IMAGE_URI
 
-    - name: 'Deploy to Cloud Run'
-      uses: 'google-github-actions/deploy-cloudrun@v2'
+        # Set the image URI as an output for the next step
+        echo "image_uri=$IMAGE_URI" >> $GITHUB_OUTPUT
+
+    # --- Deploy to Cloud Run Step ---
+    - name: Deploy to Cloud Run
+      uses: google-github-actions/deploy-cloudrun@v2
       with:
-        service: 'rag-service'
-        region: 'us-central1'
-        image: 'us-central1-docker.pkg.dev/podcarsten-32199/rag-service-repo/rag-service:$GITHUB_SHA'
-        flags: '--platform managed --allow-unauthenticated'
+        service: ${{ env.SERVICE_NAME }}
+        # Deploy to the same region as the registry/service location
+        region: ${{ env.GAR_LOCATION }}
+        image: ${{ steps.build-image.outputs.image_uri }}
+        # Add any necessary runtime flags here...
+
+    - name: Show Service URL
+      run: |
+        gcloud run services describe ${{ env.SERVICE_NAME }} \
+          --platform managed \
+          --region ${{ env.GAR_LOCATION }} \
+          --format 'value(status.url)'
