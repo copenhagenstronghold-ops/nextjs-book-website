@@ -1,57 +1,45 @@
 name: Deploy LLM RAG Service to Cloud Run
 
 on:
-push:
-branches:
-- main
-workflow_dispatch:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
 
 jobs:
-build-and-deploy:
-runs-on: ubuntu-latest
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: 'read'
+      id-token: 'write'
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
 
-# IMPORTANT: Need write permission for id-token to use Workload Identity Federation
-permissions:
-  contents: 'read'
-  id-token: 'write'
+    - id: 'auth'
+      name: Authenticate to Google Cloud
+      uses: 'google-github-actions/auth@v2'
+      with:
+        workload_identity_provider: 'projects/573158456254/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
+        service_account: 'github-actions-sa@podcarsten-32199.iam.gserviceaccount.com'
+    
+    # We rely on the 'auth' step for credentials and do not set project_id here to avoid the token refresh error.
+    - name: 'Set up Cloud SDK'
+      uses: 'google-github-actions/setup-gcloud@v2'
 
-steps:
-- name: Checkout Repository
-  uses: actions/checkout@v4
+    - name: 'Configure Docker'
+      run: gcloud auth configure-docker us-central1-docker.pkg.dev
 
-# --- Authentication (Workload Identity Federation) ---
-- id: 'auth'
-  name: Authenticate to Google Cloud
-  uses: 'google-github-actions/auth@v2'
-  with:
-    workload_identity_provider: 'projects/573158456254/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
-    service_account: 'github-actions-sa@podcarsten-32199.iam.gserviceaccount.com'
+    - name: 'Build and Push Docker Image'
+      run: |
+        IMAGE_URI="us-central1-docker.pkg.dev/podcarsten-32199/rag-service-repo/rag-service:$GITHUB_SHA"
+        docker build -t $IMAGE_URI .
+        docker push $IMAGE_URI
 
-# --- Setup Google Cloud SDK ---
-# We rely on the 'auth' step for credentials and do not set project_id here to avoid the token refresh error.
-- name: 'Set up Cloud SDK'
-  uses: 'google-github-actions/setup-gcloud@v2'
-
-# --- Configure Docker for Artifact Registry ---
-- name: 'Configure Docker'
-  run: |
-    gcloud auth configure-docker us-central1-docker.pkg.dev
-
-# --- Build and Push Docker Image ---
-- name: 'Build and Push Docker Image'
-  run: |
-    IMAGE_URI="us-central1-docker.pkg.dev/podcarsten-32199/rag-service-repo/rag-service:$GITHUB_SHA"
-    docker build -t $IMAGE_URI .
-    docker push $IMAGE_URI
-
-# --- Deploy to Cloud Run ---
-- name: 'Deploy to Cloud Run'
-  uses: 'google-github-actions/deploy-cloudrun@v2'
-  with:
-    service: 'rag-service'
-    region: 'us-central1'
-    image: 'us-central1-docker.pkg.dev/podcarsten-32199/rag-service-repo/rag-service:$GITHUB_SHA'
-    # The service account used here is the one authenticated in the 'auth' step
-    flags: '--platform managed --allow-unauthenticated'
-
-git
+    - name: 'Deploy to Cloud Run'
+      uses: 'google-github-actions/deploy-cloudrun@v2'
+      with:
+        service: 'rag-service'
+        region: 'us-central1'
+        image: 'us-central1-docker.pkg.dev/podcarsten-32199/rag-service-repo/rag-service:$GITHUB_SHA'
+        flags: '--platform managed --allow-unauthenticated'
