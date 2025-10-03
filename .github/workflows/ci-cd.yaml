@@ -43,7 +43,7 @@ jobs:
 
       # --- Continuous Delivery (CD) Steps ---
       
-      # 1. Authenticate with Google Cloud using the WIF Pool (Gets the token)
+      # 1. Authenticate with Google Cloud using the WIF Pool
       - name: Authenticate to Google Cloud
         id: 'auth'
         uses: google-github-actions/auth@v2
@@ -51,16 +51,21 @@ jobs:
           workload_identity_provider: projects/${{ env.PROJECT_NUMBER }}/locations/global/workloadIdentityPools/${{ env.WIF_POOL_ID }}/providers/${{ env.WIF_PROVIDER_ID }}
           service_account: ${{ env.SA_EMAIL }}
           
-      # 2. Configure Docker (Manual Command - Requires the propagated TokenCreator role)
+      # 2. Configure Docker (Needs TokenCreator role, which we assigned)
       - name: Configure Docker for Artifact Registry
         run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev
 
-      # 3. Build and Tag the Container Image
+      # 3. Build and Tag the Container Image (Fixes variable usage)
       - name: Build and Tag Image
         run: |
-          IMAGE_TAG="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
-          docker build -t \$IMAGE_TAG .
-          echo "IMAGE_TAG=\$IMAGE_TAG" >> \$GITHUB_ENV
+          # 1. Define the full tag string as a shell variable
+          TAG_NAME="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
+          
+          # 2. Use the shell variable in the docker build command directly
+          docker build -t "$TAG_NAME" .
+          
+          # 3. Export the final tag to the GitHub environment for the next steps
+          echo "IMAGE_TAG=$TAG_NAME" >> $GITHUB_ENV
         
       # 4. Push the Container Image to Artifact Registry
       - name: Push Image to Artifact Registry
