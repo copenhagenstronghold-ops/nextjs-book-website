@@ -1,0 +1,8 @@
+{
+  "attributeMapping": {
+    "google.subject": "assertion.sub",
+    "attribute.actor": "assertion.actor",
+    "attribute.repository": "assertion.repository"
+  },
+  "attributeCondition": "assertion.repository_owner == \"copenhagenstronghold-ops\" && assertion.repository == \"nextjs-book-website\""
+}

@@ -1,53 +1,62 @@
 name: Deploy LLM RAG Service to Cloud Run
 
 on:
-  push:
-    branches:
-      - main
-  workflow_dispatch:
+push:
+branches:
+- main
+workflow_dispatch:
 
 env:
-  PROJECT_ID: podcarsten-32199
-  SERVICE_NAME: llm-rag-service
-  REGION: europe-west1
-  REPOSITORY_NAME: rag-service-repo
-  IMAGE_NAME: llm-rag-service
+PROJECT_ID: podcarsten-32199
+SERVICE_NAME: llm-rag-service
+REGION: europe-west1
+REPOSITORY_NAME: rag-service-repo
+IMAGE_NAME: llm-rag-service
 
 jobs:
-  build-and-deploy:
-    runs-on: ubuntu-latest
+build-and-deploy:
+runs-on: ubuntu-latest
 
-    permissions:
-      contents: 'read'
-      id-token: 'write'
+permissions:
+  contents: 'read'
+  id-token: 'write'
 
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
+steps:
+  - name: Checkout Repository
+    uses: actions/checkout@v4
 
-      - id: 'auth'
-        name: 'Authenticate to Google Cloud'
-        uses: 'google-github-actions/auth@v2'
-        with:
-          workload_identity_provider: 'projects/${{ env.PROJECT_ID }}/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
-          service_account: 'github-actions-sa@${{ env.PROJECT_ID }}.iam.gserviceaccount.com'
-          token_format: 'access_token'
+  # 1. Authenticate to Google Cloud using Workload Identity Federation
+  - id: 'auth'
+    name: 'Authenticate to Google Cloud'
+    uses: 'google-github-actions/auth@v2'
+    with:
+      workload_identity_provider: 'projects/${{ env.PROJECT_ID }}/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
+      service_account: 'github-actions-sa@${{ env.PROJECT_ID }}.iam.gserviceaccount.com'
+      token_format: 'access_token'
+      # CRITICAL FIX: Explicitly set the audience to the WIF provider resource name.
+      # This must match the target resource exactly to pass the invalid_target check.
+      audience: '//iam.googleapis.com/projects/${{ env.PROJECT_ID }}/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
 
-      - name: 'Configure Docker for Artifact Registry'
-        run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --project ${{ env.PROJECT_ID }}
+  # 2. Configure Docker to use gcloud as a credential helper for Artifact Registry
+  - name: 'Configure Docker for Artifact Registry'
+    run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --project ${{ env.PROJECT_ID }}
 
-      - name: Build Docker Image
-        run: |
-          docker build -t ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY_NAME }}/${{ env.IMAGE_NAME }}:${{ github.sha }} .
+  # 3. Build and tag the Docker image
+  - name: Build Docker Image
+    run: |
+      docker build -t ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY_NAME }}/${{ env.IMAGE_NAME }}:${{ github.sha }} .
 
-      - name: Push Docker Image to Artifact Registry
-        run: |
-          docker push ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY_NAME }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+  # 4. Push the image to Artifact Registry
+  - name: Push Docker Image to Artifact Registry
+    run: |
+      docker push ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY_NAME }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
 
-      - name: Deploy to Cloud Run
-        uses: 'google-github-actions/deploy-cloudrun@v2'
-        with:
-          service: ${{ env.SERVICE_NAME }}
-          region: ${{ env.REGION }}
-          image: ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY_NAME }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
-          flags: --allow-unauthenticated
+  # 5. Deploy the container image to Cloud Run
+  - name: Deploy to Cloud Run
+    uses: 'google-github-actions/deploy-cloudrun@v2'
+    with:
+      service: ${{ env.SERVICE_NAME }}
+      region: ${{ env.REGION }}
+      image: ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY_NAME }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+      flags: --allow-unauthenticated
+
