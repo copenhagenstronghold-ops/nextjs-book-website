@@ -54,3 +54,4 @@ steps:
     # The service account used here is the one authenticated in the 'auth' step
     flags: '--platform managed --allow-unauthenticated'
 
+git
