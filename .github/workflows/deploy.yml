@@ -30,12 +30,11 @@ jobs:
         name: 'Authenticate to Google Cloud'
         uses: 'google-github-actions/auth@v2'
         with:
-          # PROVIDER: github-provider-v3 (Stays the same)
+          # PROVIDER: github-provider-v3
           workload_identity_provider: 'projects/${{ env.PROJECT_ID }}/locations/global/workloadIdentityPools/github-pool/providers/github-provider-v3'
           service_account: 'github-actions-sa@${{ env.PROJECT_ID }}.iam.gserviceaccount.com'
           token_format: 'access_token'
-          # FIX: Audience is narrowed to the POOL only, resolving potential path conflict.
-          audience: '//iam.googleapis.com/projects/${{ env.PROJECT_ID }}/locations/global/workloadIdentityPools/github-pool'
+          # FINAL FIX: Removing the problematic 'audience' line entirely to let the action infer the target.
 
       # 2. Configure Docker to use gcloud as a credential helper for Artifact Registry
       - name: 'Configure Docker for Artifact Registry'
