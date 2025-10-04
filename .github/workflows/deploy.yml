@@ -16,7 +16,7 @@ env:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-
+    
     permissions:
       contents: 'read'
       id-token: 'write'
@@ -25,26 +25,33 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
+      # 1. Authenticate to Google Cloud using Workload Identity Federation
       - id: 'auth'
         name: 'Authenticate to Google Cloud'
         uses: 'google-github-actions/auth@v2'
         with:
-          workload_identity_provider: 'projects/${{ env.PROJECT_ID }}/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
+          # CRITICAL CHANGE: Provider name changed to github-provider-v2
+          workload_identity_provider: 'projects/${{ env.PROJECT_ID }}/locations/global/workloadIdentityPools/github-pool/providers/github-provider-v2'
           service_account: 'github-actions-sa@${{ env.PROJECT_ID }}.iam.gserviceaccount.com'
           token_format: 'access_token'
-          audience: '//iam.googleapis.com/projects/${{ env.PROJECT_ID }}/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
+          # CRITICAL CHANGE: Audience name changed to github-provider-v2
+          audience: '//iam.googleapis.com/projects/${{ env.PROJECT_ID }}/locations/global/workloadIdentityPools/github-pool/providers/github-provider-v2'
 
+      # 2. Configure Docker to use gcloud as a credential helper for Artifact Registry
       - name: 'Configure Docker for Artifact Registry'
         run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --project ${{ env.PROJECT_ID }}
 
+      # 3. Build and tag the Docker image
       - name: Build Docker Image
         run: |
           docker build -t ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY_NAME }}/${{ env.IMAGE_NAME }}:${{ github.sha }} .
 
+      # 4. Push the image to Artifact Registry
       - name: Push Docker Image to Artifact Registry
         run: |
           docker push ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY_NAME }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
 
+      # 5. Deploy the container image to Cloud Run
       - name: Deploy to Cloud Run
         uses: 'google-github-actions/deploy-cloudrun@v2'
         with:
