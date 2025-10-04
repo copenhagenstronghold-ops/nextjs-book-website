@@ -34,8 +34,8 @@ jobs:
           workload_identity_provider: 'projects/${{ env.PROJECT_ID }}/locations/global/workloadIdentityPools/github-pool/providers/github-provider-v3'
           service_account: 'github-actions-sa@${{ env.PROJECT_ID }}.iam.gserviceaccount.com'
           token_format: 'access_token'
-          # CRITICAL FIX: The 'audience' must use the numeric PROJECT NUMBER (573158456254) and the NEW PROVIDER NAME.
-          audience: '//iam.googleapis.com/projects/573158456254/locations/global/workloadIdentityPools/github-pool/providers/github-provider-v3'
+          # FIX: Reverting 'audience' to use PROJECT_ID variable, matching the path seen in the error message.
+          audience: '//iam.googleapis.com/projects/${{ env.PROJECT_ID }}/locations/global/workloadIdentityPools/github-pool/providers/github-provider-v3'
 
       # 2. Configure Docker to use gcloud as a credential helper for Artifact Registry
       - name: 'Configure Docker for Artifact Registry'
