@@ -30,12 +30,12 @@ jobs:
         name: 'Authenticate to Google Cloud'
         uses: 'google-github-actions/auth@v2'
         with:
-          # CRITICAL CHANGE: Provider name changed to github-provider-v2
+          # This field uses the Project ID (podcarsten-32199) and typically works fine.
           workload_identity_provider: 'projects/${{ env.PROJECT_ID }}/locations/global/workloadIdentityPools/github-pool/providers/github-provider-v2'
           service_account: 'github-actions-sa@${{ env.PROJECT_ID }}.iam.gserviceaccount.com'
           token_format: 'access_token'
-          # CRITICAL CHANGE: Audience name changed to github-provider-v2
-          audience: '//iam.googleapis.com/projects/${{ env.PROJECT_ID }}/locations/global/workloadIdentityPools/github-pool/providers/github-provider-v2'
+          # CRITICAL FIX: The 'audience' must use the numeric PROJECT NUMBER (573158456254) for the token exchange to validate the resource path correctly.
+          audience: '//iam.googleapis.com/projects/573158456254/locations/global/workloadIdentityPools/github-pool/providers/github-provider-v2'
 
       # 2. Configure Docker to use gcloud as a credential helper for Artifact Registry
       - name: 'Configure Docker for Artifact Registry'
